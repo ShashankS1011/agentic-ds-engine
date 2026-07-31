@@ -1,0 +1,8 @@
+order_id,customer_id,order_date,amount,status
+101,C10,2024-01-15,150.00,completed
+102,C10,2024-02-20,200.00,completed
+103,C11,2024-02-22,50.00,cancelled
+104,C10,2024-03-05,300.00,completed
+105,C12,2024-03-10,120.00,completed
+106,C11,2024-03-15,400.00,completed
+107,C12,2024-04-01,80.00,refunded

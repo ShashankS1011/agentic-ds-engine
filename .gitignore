@@ -1,0 +1,26 @@
+# Environment variables and API keys (CRITICAL)
+.env
+.env.*
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python-generated files & caches
+__pycache__/
+*.py[cod]
+*$py.class
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Local databases & logs (if using local warehouse.db)
+*.db
+*.sqlite3
+
+# IDE & Editor settings
+.vscode/
+.idea/
+*.swp

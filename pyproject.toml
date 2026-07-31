@@ -1,0 +1,35 @@
+[project]
+name = "agentic-ds-engine"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Shashank", email = "shashanksingh631@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "docker>=7.2.0",
+    "duckdb>=1.5.5",
+    "fastmcp>=3.4.5",
+    "langchain-community>=0.4.2",
+    "langchain-groq>=1.1.3",
+    "langchain-ollama>=1.1.0",
+    "langgraph>=1.2.10",
+    "ollama>=0.6.2",
+    "pandas>=3.0.5",
+    "plotly>=6.9.0",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
+    "streamlit>=1.60.0",
+    "tabulate>=0.10.0",
+]
+
+[project.scripts]
+agentic-ds-engine = "agentic_ds_engine:main"
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+package = false
