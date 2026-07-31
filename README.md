@@ -124,5 +124,3 @@ $env:PYTHONPATH="src"; uv run streamlit run src/app.py
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 =======
-# agentic-ds-engine
->>>>>>> 92b1dd1506b556c41a6c73d26bb291286dae13d3
