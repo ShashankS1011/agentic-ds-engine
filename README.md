@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Agentic Data Science Engine
 
 An autonomous multi-agent analytics platform built with LangGraph, DuckDB, Groq, and Streamlit.
@@ -123,4 +122,3 @@ $env:PYTHONPATH="src"; uv run streamlit run src/app.py
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
-=======
