@@ -1,137 +1,144 @@
 # Agentic Data Science Engine
 
-An autonomous multi-agent analytics platform built with LangGraph, DuckDB, Groq, and Streamlit.
+An interactive, multi-agent analytics workspace for exploring CSV and Parquet data with natural language.
 
-The engine converts natural language user queries into executable DuckDB SQL, runs analysis against local CSV and Parquet datasets, generates dynamic interactive visualizations, and synthesizes natural-language executive summaries. It features an automated self-healing execution loop to recover from runtime database errors without user intervention.
+Ask a question about your data and the engine coordinates a small LangGraph workflow that profiles the dataset, writes DuckDB SQL, executes it locally, creates a visualization when appropriate, and explains the result in plain language.
 
----
+## What this project does
 
-## Architecture Overview
+The application turns ordinary data analysis into a conversational workflow:
 
-The core workflow is governed by a LangGraph state graph using a supervisor-worker pattern:
+1. You upload a CSV or Parquet file, or use the included sample dataset.
+2. The analyst agent interprets your question and generates SQL.
+3. The SQL runner executes the query against DuckDB and retries when the query needs correction.
+4. The visualizer creates a Plotly chart when the result is suitable for visualization.
+5. The synthesizer returns an executive summary with the important findings.
 
-- **Supervisor Node:** Directs state transitions and routes execution between worker agents based on current state attributes and retry counts.
-- **Analyst Node:** Inspects dataset profiles and generates dialect-accurate DuckDB SQL queries. If an execution error occurs, it analyzes the database exception trace to rewrite the SQL query.
-- **SQL Runner Node:** Executes generated SQL queries against the local DuckDB engine and handles error trapping.
-- **Visualizer Node:** Evaluates tabular query output and synthesizes executable Python Plotly code for visual display.
-- **Synthesizer Node:** Interprets raw query results and generates structured executive summaries and actionable business insights.
+The data processing stays local to the application. Only the language-model prompts and the context needed to answer a question are sent to the configured Groq model.
 
----
+## Highlights
 
-## Core Features
+- Natural-language questions over CSV and Parquet files.
+- Multi-agent orchestration with LangGraph.
+- Local SQL execution through DuckDB.
+- Automatic query repair with bounded retries.
+- Interactive Plotly visualizations.
+- Conversational history within a browser session.
+- A clean Streamlit workspace with dataset preview, progress updates, and separate summary, data, and visualization tabs.
 
-- **Multi-Agent Orchestration:** Powered by LangGraph state graphs with strict typing and persistent thread checkpointing.
-- **Self-Healing SQL Retry Loop:** Automatically intercepts DuckDB syntax or schema errors, routes exception traces back to the Analyst node, and attempts up to 3 automatic correction cycles.
-- **In-Memory SQL Performance:** Direct SQL queries over CSV and Parquet files using DuckDB auto-schema discovery (`read_csv_auto` and `read_parquet`).
-- **Dynamic Visualization:** Generates customized Plotly Express charts dynamically tailored to the schema of the returned dataset.
-- **State Persistence:** Maintains query, code, visual, and message history per session using Streamlit state management.
-
----
-
-## Project Structure
+## How the workflow fits together
 
 ```text
-agentic-ds-engine/
-├── src/
-│   ├── app.py             # Streamlit user interface and event streaming
-│   ├── graph.py           # LangGraph orchestration logic and node definitions
-│   ├── agent_state.py     # TypedDict state schema definitions
-│   ├── mcp_server.py      # DuckDB execution module and schema profiler
-│   ├── report_generator.py# Export and reporting utilities
-│   └── nodes/             # Extensible pipeline components
-├── sample_sales.csv       # Sample dataset
-├── customers.csv          # Sample dataset
-├── orders.csv             # Sample dataset
-├── pyproject.toml         # Dependency and environment configuration
-├── .env.example           # Environment template
-└── README.md              # Project documentation
+User question
+      |
+      v
+Supervisor --> Analyst --> SQL Runner --> Visualizer
+      |            ^             |             |
+      +------------+------ error +-------------+
+      |
+      v
+Synthesizer --> Executive summary
 ```
 
----
+## Project structure
 
-## Prerequisites
+| Path | Purpose |
+| --- | --- |
+| [`src/app.py`](./src/app.py) | Streamlit interface and result presentation |
+| [`src/graph.py`](./src/graph.py) | LangGraph workflow and agent nodes |
+| [`src/agent_state.py`](./src/agent_state.py) | Shared state passed between nodes |
+| [`src/mcp_server.py`](./src/mcp_server.py) | Data-analysis tools exposed to the workflow |
+| [`src/report_generator.py`](./src/report_generator.py) | Report and output helpers |
+| [`tests/`](./tests/) | Automated tests |
+| [`sample_sales.csv`](./sample_sales.csv) | Small dataset for trying the application |
 
-- Python 3.11 or higher
-- `uv` package manager
-- Groq API Key
+## Requirements
 
----
+- Python 3.11 or 3.12
+- [`uv`](https://docs.astral.sh/uv/)
+- A Groq API key
 
-## Quickstart Guide
+## Quick start
 
-### 1. Repository Setup
+### 1. Install dependencies
 
-Clone the repository to your local machine:
+From the project directory:
 
-```bash
-git clone [https://github.com/YOUR_USERNAME/agentic-ds-engine.git](https://github.com/YOUR_USERNAME/agentic-ds-engine.git)
-cd agentic-ds-engine
-```
-
-### 2. Environment Configuration
-
-Copy the sample environment file and add your credentials:
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` in your editor and set your Groq API key:
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-### 3. Install Dependencies
-
-Install the project virtual environment and required libraries using `uv`:
-
-```bash
+```powershell
 uv sync
 ```
 
-### 4. Run the Application
+### 2. Configure the model
 
-Execute the application using the commands appropriate for your operating system:
+Create a local environment file from the template:
 
-- **Linux / macOS:**
+```powershell
+Copy-Item .env.example .env
+```
+
+Then edit `.env` and add your key:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL_NAME=openai/gpt-oss-20b
+```
+
+Keep `.env` private and never commit it to source control.
+
+### 3. Start the application
+
+PowerShell:
+
+```powershell
+$env:PYTHONPATH="src"
+uv run streamlit run src/app.py
+```
+
+macOS/Linux:
 
 ```bash
 PYTHONPATH=src uv run streamlit run src/app.py
 ```
 
-- **Windows (PowerShell):**
+Open the local URL printed by Streamlit, normally `http://localhost:8501`.
+
+## Example questions
+
+After loading `sample_sales.csv`, try:
+
+- “Which product category generated the most revenue?”
+- “Show monthly revenue as a line chart.”
+- “Compare average order value by region.”
+- “What are the main trends and anomalies in this dataset?”
+
+For reliable results, ask for a specific metric, grouping, filter, or time period. For example: “Calculate total revenue by region for 2025 and show it as a bar chart.”
+
+## Testing
+
+Run the test suite with:
 
 ```powershell
-$env:PYTHONPATH="src"; uv run streamlit run src/app.py
+$env:PYTHONPATH="src"
+uv run python -m unittest discover -s tests -v
 ```
 
-### 5. Run the Tests
+## Configuration notes
 
-The regression tests use Python's standard library test runner and do not
-require an additional test dependency:
+- `GROQ_API_KEY` is required for agent reasoning.
+- `GROQ_MODEL_NAME` controls which Groq chat model is used. Choose a model currently available to your account.
+- Uploaded files are copied into a temporary workspace for the active session.
+- Generated SQL is intended for local DuckDB execution and is not a replacement for production database access controls.
 
-```powershell
-$env:PYTHONPATH="src"; uv run python -m unittest discover -s tests -v
-```
+## Security and production considerations
 
-Uploaded files are stored in a session-scoped temporary directory. Dataset
-paths are never taken directly from the uploaded filename, which prevents
-directory traversal through crafted upload names.
+This project is designed as a local development and analysis tool. Before exposing it to other users:
 
----
-
-## Technology Stack
-
-- **Orchestration:** LangGraph / LangChain
-- **Language Model:** Groq (`llama-3.3-70b-versatile`)
-- **Query Engine:** DuckDB
-- **User Interface:** Streamlit
-- **Visualization:** Plotly Express
-- **Package Management:** `uv`
-
----
+- Add authentication and authorization.
+- Add upload size and file-type limits.
+- Review generated code execution and isolate it in a restricted process.
+- Add logging, rate limiting, and stronger secrets management.
+- Avoid sending sensitive data to a third-party model provider unless your data policy allows it.
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the MIT License.

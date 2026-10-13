@@ -13,7 +13,13 @@ from mcp_server import profile_dataset, execute_sql
 
 load_dotenv()
 
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+groq_api_key = os.getenv("GROQ_API_KEY")
+groq_model = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
+
+if not groq_api_key:
+    raise RuntimeError("GROQ_API_KEY is required. Add it to your local .env file.")
+
+llm = ChatGroq(model=groq_model, temperature=0, api_key=groq_api_key)
 
 MAX_RETRIES = 3
 
@@ -63,7 +69,7 @@ def supervisor_node(state: AgentState):
     # 4. Route to Visualizer once SQL has executed successfully
     if current_result and not chart_evaluated:
         return {"next_node": "visualizer"}
-    
+
     # 5. Route to Synthesizer or FINISH
     prompt = [
         SystemMessage(content=(

@@ -1,6 +1,7 @@
 # Environment variables and API keys (CRITICAL)
 .env
 .env.*
+!.env.example
 
 # Virtual environments
 .venv/

@@ -12,10 +12,31 @@ from graph import app as agent_app
 # Set default Plotly renderer to JSON for compatibility
 pio.renderers.default = "json"
 
-st.set_page_config(page_title="Agentic Data Science Engine", layout="wide")
+st.set_page_config(
+    page_title="Agentic Data Science Engine",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-st.title("Agentic Data Science Engine")
-st.caption("Powered by LangGraph, DuckDB, and Groq")
+st.markdown(
+    """
+    <style>
+        .block-container { padding-top: 2.5rem; padding-bottom: 3rem; }
+        .hero { padding: 1.25rem 1.5rem; border-radius: 16px; background: linear-gradient(135deg, #172554 0%, #1e3a8a 55%, #0f766e 100%); color: white; margin-bottom: 1.25rem; }
+        .hero h1 { margin: 0; font-size: 2.15rem; letter-spacing: -0.03em; }
+        .hero p { margin: 0.45rem 0 0; color: #dbeafe; font-size: 1rem; }
+        .section-label { color: #64748b; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 1.25rem 0 0.4rem; }
+        .stChatMessage { border-radius: 14px; }
+        [data-testid="stMetric"] { background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.75rem; border-radius: 12px; }
+    </style>
+    <div class="hero">
+        <h1>Agentic Data Science Engine</h1>
+        <p>Ask questions in plain English. Get verified SQL, interactive charts, and concise business insight.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # Initialize unique thread ID for LangGraph checkpointer if not present
 if "thread_id" not in st.session_state:
@@ -25,11 +46,14 @@ if "messages" not in st.session_state:
 
 # Sidebar: Multi-file upload & Session Reset
 with st.sidebar:
-    st.header("1. Upload Datasets")
+    st.markdown("## Workspace")
+    st.caption("Configure your data workspace, then ask a question below.")
+    st.markdown('<div class="section-label">1 · Data sources</div>', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
-        "Upload CSV or Parquet files", 
+        "Upload CSV or Parquet files",
         type=["csv", "parquet"], 
-        accept_multiple_files=True
+        accept_multiple_files=True,
+        help="Upload one or more files. The analyst can join them when the schemas allow it.",
     )
     
     file_paths = []
@@ -42,17 +66,39 @@ with st.sidebar:
                 f.write(file.getbuffer())
             file_paths.append(str(file_path))
         st.success(f"Loaded {len(file_paths)} file(s).")
+        with st.expander("Preview loaded data", expanded=False):
+            for file_path in file_paths:
+                try:
+                    preview = (
+                        pd.read_parquet(file_path).head(5)
+                        if file_path.lower().endswith(".parquet")
+                        else pd.read_csv(file_path, nrows=5)
+                    )
+                    st.caption(Path(file_path).name)
+                    st.dataframe(preview, use_container_width=True, hide_index=True)
+                except Exception as exc:
+                    st.caption(f"Preview unavailable: {exc}")
     else:
         file_paths = ["sample_sales.csv"]
-        st.info("Using default dataset: sample_sales.csv")
+        st.info("Using sample_sales.csv")
 
     st.markdown("---")
-    st.header("2. Session Management")
+    st.markdown('<div class="section-label">2 · Session</div>', unsafe_allow_html=True)
+    st.caption(f"Thread: `{st.session_state.thread_id[:8]}`")
     if st.button("Reset Session / Clear Graph State", type="secondary", use_container_width=True):
         st.session_state.thread_id = str(uuid.uuid4())
         st.session_state.messages = []
         st.success("Session reset. Fresh graph thread initialized.")
         st.rerun()
+
+    st.markdown("---")
+    st.caption("Tip: Ask for trends, comparisons, rankings, outliers, or relationships between files.")
+
+questions_asked = sum(1 for msg in st.session_state.messages if msg["role"] == "user")
+metric_a, metric_b, metric_c = st.columns(3)
+metric_a.metric("Questions asked", questions_asked)
+metric_b.metric("Files in workspace", len(file_paths))
+metric_c.metric("Query engine", "DuckDB")
 
 # Display persistent chat history
 for msg in st.session_state.messages:
@@ -64,7 +110,7 @@ for msg in st.session_state.messages:
 config = {"configurable": {"thread_id": st.session_state.thread_id}}
 
 # User Query Input and Autonomous Execution
-if user_input := st.chat_input("Ask a question about your data..."):
+if user_input := st.chat_input("Ask a question about your data…"):
     # Display user input in UI and store in state
     st.chat_message("user").markdown(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -123,19 +169,6 @@ if user_input := st.chat_input("Ask a question about your data..."):
 
         status_box.update(label="Analysis Complete", state="complete", expanded=False)
         
-        # Render outputs in Streamlit UI
-        st.markdown("### Executive Summary")
-        st.markdown(final_response)
-        
-        if executed_sql:
-            st.markdown("### Executed SQL Query")
-            st.code(executed_sql, language="sql")
-            
-        if query_result:
-            st.markdown("### Query Results")
-            st.markdown(query_result)
-        
-        # Execute and display Plotly chart safely
         fig_obj = None
         if chart_code:
             try:
@@ -144,10 +177,26 @@ if user_input := st.chat_input("Ask a question about your data..."):
                 exec(chart_code, exec_globals, exec_locals)
                 if "fig" in exec_locals:
                     fig_obj = exec_locals["fig"]
-                    st.markdown("### Data Visualization")
-                    st.plotly_chart(fig_obj, use_container_width=True)
             except Exception as e:
                 st.caption(f"Chart execution failed: {e}")
+
+        # Present the result as a compact, scannable analysis workspace.
+        st.markdown("### Analysis result")
+        summary_tab, data_tab, chart_tab = st.tabs(["Executive summary", "SQL & data", "Visualization"])
+        with summary_tab:
+            st.markdown(final_response or "No summary was generated.")
+        with data_tab:
+            if executed_sql:
+                st.caption("Generated DuckDB SQL")
+                st.code(executed_sql, language="sql")
+            if query_result:
+                st.caption("Query result")
+                st.markdown(query_result)
+        with chart_tab:
+            if fig_obj is not None:
+                st.plotly_chart(fig_obj, use_container_width=True)
+            else:
+                st.info("This result was not suitable for a chart.")
         
         # Format structured message for persistent chat state
         full_history_content = (
