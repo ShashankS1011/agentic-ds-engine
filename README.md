@@ -106,6 +106,19 @@ PYTHONPATH=src uv run streamlit run src/app.py
 $env:PYTHONPATH="src"; uv run streamlit run src/app.py
 ```
 
+### 5. Run the Tests
+
+The regression tests use Python's standard library test runner and do not
+require an additional test dependency:
+
+```powershell
+$env:PYTHONPATH="src"; uv run python -m unittest discover -s tests -v
+```
+
+Uploaded files are stored in a session-scoped temporary directory. Dataset
+paths are never taken directly from the uploaded filename, which prevents
+directory traversal through crafted upload names.
+
 ---
 
 ## Technology Stack

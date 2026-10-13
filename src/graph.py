@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Literal
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -17,6 +18,17 @@ llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
 MAX_RETRIES = 3
 
 
+def _contains_sql_error(result: str) -> bool:
+    return "SQL Execution Error" in result or result.startswith("Error:")
+
+
+def _extract_fenced_content(content: str, language: str) -> str:
+    """Extract the first fenced block, or return the trimmed response."""
+    pattern = rf"```(?:{re.escape(language)})?\s*(.*?)```"
+    match = re.search(pattern, content, flags=re.IGNORECASE | re.DOTALL)
+    return match.group(1).strip() if match else content.strip()
+
+
 class SupervisorDecision(BaseModel):
     next_node: Literal["analyst", "sql_runner", "visualizer", "synthesizer", "FINISH"] = Field(
         description="The next worker agent to route to, or FINISH if answer is complete."
@@ -29,7 +41,7 @@ def supervisor_node(state: AgentState):
     
     current_sql = state.get("sql_query", "").strip()
     current_result = state.get("query_result", "").strip()
-    has_error = "SQL Execution Error" in current_result or "Error:" in current_result
+    has_error = _contains_sql_error(current_result)
     chart_evaluated = state.get("chart_evaluated", False)
     retry_count = state.get("retry_count", 0)
     
@@ -76,7 +88,7 @@ def analyst_node(state: AgentState):
     retry_count = state.get("retry_count", 0)
     
     error_context = ""
-    if "SQL Execution Error" in last_result or "Error:" in last_result:
+    if _contains_sql_error(last_result):
         retry_count += 1
         error_context = (
             f"\n\nYOUR PREVIOUS QUERY FAILED (Attempt {retry_count}/{MAX_RETRIES}):\n"
@@ -100,12 +112,7 @@ def analyst_node(state: AgentState):
     response = llm.invoke(prompt)
     raw_content = response.content.strip()
     
-    if "```sql" in raw_content:
-        clean_sql = raw_content.split("```sql")[1].split("```")[0].strip()
-    elif "```" in raw_content:
-        clean_sql = raw_content.split("```")[1].split("```")[0].strip()
-    else:
-        clean_sql = raw_content
+    clean_sql = _extract_fenced_content(raw_content, "sql")
     
     return {
         "sql_query": clean_sql,
@@ -131,7 +138,7 @@ def visualizer_node(state: AgentState):
     query_result = state.get("query_result", "")
     
     # If the SQL failed and hit max retries, skip visualization
-    if "SQL Execution Error" in query_result or "Error:" in query_result:
+    if _contains_sql_error(query_result):
         return {"chart_code": "", "chart_evaluated": True}
         
     prompt = [
@@ -149,11 +156,7 @@ def visualizer_node(state: AgentState):
     response = llm.invoke(prompt)
     code = response.content.strip()
     
-    clean_code = ""
-    if "```python" in code:
-        clean_code = code.split("```python")[1].split("```")[0].strip()
-    elif "```" in code:
-        clean_code = code.split("```python")[1].split("```")[0].strip()
+    clean_code = _extract_fenced_content(code, "python")
         
     return {
         "chart_code": clean_code if clean_code.upper() != "NONE" else "",
@@ -166,7 +169,7 @@ def synthesizer_node(state: AgentState):
     query_result = state.get("query_result", "")
     retry_count = state.get("retry_count", 0)
     
-    if "SQL Execution Error" in query_result or "Error:" in query_result:
+    if _contains_sql_error(query_result):
         summary_prompt = (
             f"The SQL query could not be executed successfully after {retry_count} auto-correction attempts.\n"
             f"Error details:\n{query_result}\n\n"

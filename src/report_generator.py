@@ -1,15 +1,18 @@
 import datetime
+from html import escape
 
 def generate_html_report(query_text: str, sql_query: str, query_result: str, summary_text: str, plotly_fig=None) -> str:
     """Bundles analysis artifacts into a self-contained HTML executive report."""
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%d %H:%M:%S UTC"
+    )
     
     chart_html = ""
     if plotly_fig is not None:
         chart_html = f"""
         <div class="card">
             <h2>Data Visualization</h2>
-            {plotly_fig.to_html(full_html=False, include_plotlyjs='cdn')}
+            {plotly_fig.to_html(full_html=False, include_plotlyjs="cdn")}
         </div>
         """
         
@@ -39,24 +42,24 @@ def generate_html_report(query_text: str, sql_query: str, query_result: str, sum
             
             <div class="card">
                 <h2>User Query</h2>
-                <p><strong>"{query_text}"</strong></p>
+                <p><strong>"{escape(query_text)}"</strong></p>
             </div>
             
             <div class="card">
                 <h2>Executive Summary</h2>
-                <div class="summary">{summary_text}</div>
+                <div class="summary">{escape(summary_text)}</div>
             </div>
             
             {chart_html}
             
             <div class="card">
                 <h2>Generated SQL Query</h2>
-                <pre><code>{sql_query}</code></pre>
+                <pre><code>{escape(sql_query)}</code></pre>
             </div>
             
             <div class="card">
                 <h2>Raw Execution Result</h2>
-                <pre>{query_result}</pre>
+                <pre>{escape(query_result)}</pre>
             </div>
         </div>
     </body>

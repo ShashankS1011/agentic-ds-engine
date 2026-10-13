@@ -1,5 +1,6 @@
 import streamlit as st
-import os
+from pathlib import Path
+import tempfile
 import uuid
 import pandas as pd
 import plotly.express as px
@@ -33,11 +34,13 @@ with st.sidebar:
     
     file_paths = []
     if uploaded_files:
+        upload_dir = Path(tempfile.gettempdir()) / "agentic-ds-engine" / st.session_state.thread_id
+        upload_dir.mkdir(parents=True, exist_ok=True)
         for file in uploaded_files:
-            file_path = file.name
+            file_path = upload_dir / Path(file.name).name
             with open(file_path, "wb") as f:
                 f.write(file.getbuffer())
-            file_paths.append(file_path)
+            file_paths.append(str(file_path))
         st.success(f"Loaded {len(file_paths)} file(s).")
     else:
         file_paths = ["sample_sales.csv"]

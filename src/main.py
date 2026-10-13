@@ -4,9 +4,14 @@ from graph import app
 if __name__ == "__main__":
     initial_state = {
         "messages": [HumanMessage(content="Which product generated the highest revenue?")],
-        "dataset_path": "sample_sales.csv",
+        "dataset_paths": ["sample_sales.csv"],
         "sql_query": "",
         "query_result": "",
+        "chart_code": "",
+        "chart_evaluated": False,
+        "is_approved": True,
+        "retry_count": 0,
+        "next_node": "",
         "status": "started"
     }
 
