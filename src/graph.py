@@ -10,11 +10,12 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from agent_state import AgentState
 from mcp_server import profile_dataset, execute_sql
+from security import get_setting
 
 load_dotenv()
 
-groq_api_key = os.getenv("GROQ_API_KEY")
-groq_model = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
+groq_api_key = get_setting("GROQ_API_KEY")
+groq_model = get_setting("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
 
 if not groq_api_key:
     raise RuntimeError("GROQ_API_KEY is required. Add it to your local .env file.")
@@ -133,7 +134,7 @@ def analyst_node(state: AgentState):
 
 def sql_runner_node(state: AgentState):
     sql_query = state.get("sql_query", "")
-    result = execute_sql(sql_query, "warehouse.db")
+    result = execute_sql(sql_query)
     return {
         "query_result": result,
         "messages": [HumanMessage(content=f"SQL Query Result:\n{result}")]

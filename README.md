@@ -81,6 +81,7 @@ Specific questions that name a metric, grouping, filter, or time period generall
 | [`src/agent_state.py`](./src/agent_state.py) | Shared workflow state |
 | [`src/mcp_server.py`](./src/mcp_server.py) | Dataset profiling and DuckDB execution |
 | [`src/chart_security.py`](./src/chart_security.py) | Restricted execution for generated chart code |
+| [`src/security.py`](./src/security.py) | Authentication, configuration, upload, and SQL safety helpers |
 | [`src/report_generator.py`](./src/report_generator.py) | HTML report generation |
 | [`tests/`](./tests/) | Automated tests |
 
@@ -121,6 +122,8 @@ uv run agentic-ds-engine
 
 - `GROQ_API_KEY` is required for agent reasoning.
 - `GROQ_MODEL_NAME` selects the Groq chat model.
+- `APP_PASSWORD` enables the sign-in screen; `APP_USERNAME` optionally sets the expected username.
+- `MAX_UPLOAD_SIZE_MB` defaults to 50 MB per file, and `MAX_UPLOAD_FILES` defaults to 10 files per upload.
 - Uploaded files are copied into a temporary directory for the current browser session.
 - Generated SQL reads CSV and Parquet files directly with DuckDB reader functions.
 - Local `.env` files, databases, caches, coverage output, and Streamlit secrets are ignored by Git.
@@ -135,7 +138,7 @@ This application is intended for local development and trusted users. Before dep
 - Add logging and rate limiting.
 - Review whether sending schema and query context to a hosted model is acceptable.
 
-Generated chart code is parsed and restricted to a small pandas/Plotly Express subset before execution. This reduces risk, but it is not a replacement for process isolation in an untrusted multi-user deployment.
+The application now provides optional password authentication, configurable upload limits, read-only single-statement SQL execution, and Streamlit-secret support. Generated chart code is parsed and restricted to a small pandas/Plotly Express subset, then run in a short-lived worker process with a timeout. For a truly untrusted multi-user deployment, place the app behind a reverse proxy with authentication, resource quotas, and container or VM isolation.
 
 ## License
 

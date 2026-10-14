@@ -7,9 +7,12 @@ import plotly.express as px
 import plotly.io as pio
 
 from langchain_core.messages import HumanMessage
-from graph import app as agent_app
 from report_generator import generate_html_report
 from chart_security import execute_chart_code
+from security import (
+    get_positive_int,
+    render_login,
+)
 
 # Set default Plotly renderer to JSON for compatibility
 pio.renderers.default = "json"
@@ -20,6 +23,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+render_login(st)
+
+from graph import app as agent_app
 
 st.markdown(
     """
@@ -60,9 +67,17 @@ with st.sidebar:
     
     file_paths = []
     if uploaded_files:
+        max_upload_mb = get_positive_int("MAX_UPLOAD_SIZE_MB", 50)
+        max_upload_files = get_positive_int("MAX_UPLOAD_FILES", 10)
+        if len(uploaded_files) > max_upload_files:
+            st.error(f"Upload at most {max_upload_files} files at a time.")
+            st.stop()
         upload_dir = Path(tempfile.gettempdir()) / "agentic-ds-engine" / st.session_state.thread_id
         upload_dir.mkdir(parents=True, exist_ok=True)
         for file in uploaded_files:
+            if file.size > max_upload_mb * 1024 * 1024:
+                st.error(f"{file.name} exceeds the {max_upload_mb} MB upload limit.")
+                st.stop()
             file_path = upload_dir / Path(file.name).name
             with open(file_path, "wb") as f:
                 f.write(file.getbuffer())
@@ -95,6 +110,9 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption("Tip: Ask for trends, comparisons, rankings, outliers, or relationships between files.")
+    if st.session_state.get("authenticated") and st.button("Sign out", use_container_width=True):
+        st.session_state.authenticated = False
+        st.rerun()
 
 questions_asked = sum(1 for msg in st.session_state.messages if msg["role"] == "user")
 metric_a, metric_b, metric_c = st.columns(3)
@@ -174,7 +192,7 @@ if user_input := st.chat_input("Ask a question about your data…"):
         fig_obj = None
         if chart_code:
             try:
-                fig_obj = execute_chart_code(chart_code, px=px, pd=pd)
+                fig_obj = execute_chart_code(chart_code)
             except Exception as e:
                 st.caption(f"Chart execution failed: {e}")
 

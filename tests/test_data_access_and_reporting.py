@@ -1,5 +1,6 @@
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import duckdb
@@ -9,6 +10,14 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from mcp_server import execute_sql, profile_dataset
 from report_generator import generate_html_report
 from chart_security import execute_chart_code
+from security import (
+    authentication_enabled,
+    get_positive_int,
+    password_is_valid,
+    validate_read_only_sql,
+    validate_upload,
+    username_is_valid,
+)
 
 
 class DataAccessAndReportingTests(unittest.TestCase):
@@ -51,6 +60,37 @@ class DataAccessAndReportingTests(unittest.TestCase):
         finally:
             database.unlink(missing_ok=True)
 
+    def test_execute_sql_rejects_write_queries(self):
+        result = execute_sql("DROP TABLE sales")
+
+        self.assertIn("Only SELECT and WITH queries are allowed", result)
+
+    def test_read_only_sql_validation_rejects_multiple_statements(self):
+        self.assertEqual(
+            "Only one SQL statement is allowed.",
+            validate_read_only_sql("SELECT 1; SELECT 2"),
+        )
+        self.assertIsNone(validate_read_only_sql("WITH values AS (SELECT 1) SELECT * FROM values"))
+
+    def test_upload_validation_enforces_type_and_size(self):
+        self.assertIsNone(validate_upload("sales.csv", 1024, 1))
+        self.assertIn("Only CSV", validate_upload("sales.xlsx", 1024, 1))
+        self.assertIn("upload limit", validate_upload("sales.csv", 2 * 1024 * 1024, 1))
+
+    def test_invalid_integer_setting_uses_safe_default(self):
+        with mock.patch.dict("os.environ", {"MAX_UPLOAD_FILES": "not-a-number"}):
+            self.assertEqual(10, get_positive_int("MAX_UPLOAD_FILES", 10))
+
+    def test_configured_authentication_checks_credentials(self):
+        with mock.patch.dict(
+            "os.environ", {"APP_USERNAME": "analyst", "APP_PASSWORD": "secret"}
+        ):
+            self.assertTrue(authentication_enabled())
+            self.assertTrue(username_is_valid("analyst"))
+            self.assertFalse(username_is_valid("other"))
+            self.assertTrue(password_is_valid("secret"))
+            self.assertFalse(password_is_valid("wrong"))
+
     def test_report_escapes_user_controlled_text(self):
         report = generate_html_report(
             "<script>alert(1)</script>",
@@ -63,22 +103,14 @@ class DataAccessAndReportingTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;", report)
 
     def test_chart_code_allows_plotly_dataframe_creation(self):
-        import pandas as pd
-        import plotly.express as px
-
         fig = execute_chart_code(
             "import pandas as pd\nimport plotly.express as px\n"
             "df = pd.DataFrame({'category': ['A'], 'value': [1]})\n"
             "fig = px.bar(df, x='category', y='value')",
-            px=px,
-            pd=pd,
         )
 
         self.assertIsNotNone(fig)
 
     def test_chart_code_rejects_unsafe_names(self):
-        import pandas as pd
-        import plotly.express as px
-
         with self.assertRaises(ValueError):
-            execute_chart_code("__import__('os').system('whoami')", px=px, pd=pd)
+            execute_chart_code("__import__('os').system('whoami')")

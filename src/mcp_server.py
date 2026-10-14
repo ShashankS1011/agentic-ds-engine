@@ -3,6 +3,8 @@ from typing import Iterable
 
 import duckdb
 
+from security import validate_read_only_sql
+
 
 def _sql_string_literal(value: str) -> str:
     """Escape a filesystem path for use in a DuckDB string literal."""
@@ -51,13 +53,17 @@ def profile_dataset(file_paths: Iterable[str] | str) -> str:
 
     return "\n\n".join(profiles)
 
-def execute_sql(sql_query: str, db_path: str = "warehouse.db") -> str:
+def execute_sql(sql_query: str, db_path: str = ":memory:") -> str:
     """Executes a DuckDB SQL query and returns markdown table output or error message."""
     if not sql_query or sql_query.strip() == "":
         return "Error: No SQL query was provided to execute."
+
+    validation_error = validate_read_only_sql(sql_query)
+    if validation_error:
+        return f"SQL Execution Error: {validation_error}"
     
     try:
-        with duckdb.connect(database=db_path, read_only=False) as con:
+        with duckdb.connect(database=db_path, read_only=db_path != ":memory:") as con:
             result_df = con.execute(sql_query).df()
 
         if result_df.empty:
