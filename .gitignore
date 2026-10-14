@@ -12,6 +12,12 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
 build/
 dist/
 wheels/
@@ -25,3 +31,10 @@ wheels/
 .vscode/
 .idea/
 *.swp
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Streamlit local secrets
+.streamlit/secrets.toml

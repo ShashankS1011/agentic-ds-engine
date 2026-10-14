@@ -8,6 +8,8 @@ import plotly.io as pio
 
 from langchain_core.messages import HumanMessage
 from graph import app as agent_app
+from report_generator import generate_html_report
+from chart_security import execute_chart_code
 
 # Set default Plotly renderer to JSON for compatibility
 pio.renderers.default = "json"
@@ -172,11 +174,7 @@ if user_input := st.chat_input("Ask a question about your data…"):
         fig_obj = None
         if chart_code:
             try:
-                exec_globals = {"px": px, "pd": pd, "pio": pio}
-                exec_locals = {}
-                exec(chart_code, exec_globals, exec_locals)
-                if "fig" in exec_locals:
-                    fig_obj = exec_locals["fig"]
+                fig_obj = execute_chart_code(chart_code, px=px, pd=pd)
             except Exception as e:
                 st.caption(f"Chart execution failed: {e}")
 
@@ -197,6 +195,16 @@ if user_input := st.chat_input("Ask a question about your data…"):
                 st.plotly_chart(fig_obj, use_container_width=True)
             else:
                 st.info("This result was not suitable for a chart.")
+
+        report_html = generate_html_report(
+            user_input, executed_sql, query_result, final_response, fig_obj
+        )
+        st.download_button(
+            "Download HTML report",
+            data=report_html,
+            file_name="analysis-report.html",
+            mime="text/html",
+        )
         
         # Format structured message for persistent chat state
         full_history_content = (

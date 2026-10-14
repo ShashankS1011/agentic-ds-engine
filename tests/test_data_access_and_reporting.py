@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from mcp_server import execute_sql, profile_dataset
 from report_generator import generate_html_report
+from chart_security import execute_chart_code
 
 
 class DataAccessAndReportingTests(unittest.TestCase):
@@ -60,3 +61,24 @@ class DataAccessAndReportingTests(unittest.TestCase):
 
         self.assertNotIn("<script>alert(1)</script>", report)
         self.assertIn("&lt;script&gt;", report)
+
+    def test_chart_code_allows_plotly_dataframe_creation(self):
+        import pandas as pd
+        import plotly.express as px
+
+        fig = execute_chart_code(
+            "import pandas as pd\nimport plotly.express as px\n"
+            "df = pd.DataFrame({'category': ['A'], 'value': [1]})\n"
+            "fig = px.bar(df, x='category', y='value')",
+            px=px,
+            pd=pd,
+        )
+
+        self.assertIsNotNone(fig)
+
+    def test_chart_code_rejects_unsafe_names(self):
+        import pandas as pd
+        import plotly.express as px
+
+        with self.assertRaises(ValueError):
+            execute_chart_code("__import__('os').system('whoami')", px=px, pd=pd)
