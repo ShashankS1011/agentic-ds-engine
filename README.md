@@ -1,5 +1,7 @@
 # Agentic Data Science Engine
 
+[![CI](https://github.com/ShashankS1011/agentic-ds-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ShashankS1011/agentic-ds-engine/actions/workflows/ci.yml)
+
 Agentic Data Science Engine is a local Streamlit app for asking natural-language questions about CSV and Parquet files. It uses LangGraph to coordinate a small analysis workflow:
 
 1. Profile the uploaded datasets.
